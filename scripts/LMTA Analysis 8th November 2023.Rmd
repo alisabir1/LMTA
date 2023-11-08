@@ -1,0 +1,1191 @@
+---
+title: "Forecast of Labour Market Transfer Agreements (LMTA) Client Numbers and Expenditures FY 2024-25 to FY 2028-29"
+author: "Analytics Unit"
+date: "`r format(Sys.Date(), '%B %d %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+<style type="text/css">
+
+body{ /* Normal  */
+      font-size: 16px;
+  }
+td {  /* Table  */
+  font-size: 16px;
+}
+h1.title {
+  font-size: 38px;
+  color: DarkRed;
+}
+h1 { /* Header 1 */
+  font-size: 28px;
+  color: DarkBlue;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+  color: DarkBlue;
+}
+h3 { /* Header 3 */
+  font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkBlue;
+}
+code.r{ /* Code block */
+    font-size: 12px;
+}
+pre { /* Code block - determines code spacing between lines */
+    font-size: 14px;
+}
+</style>
+
+
+# Introduction
+
+The purpose of this report is to undertake an analysis of past and present LMTA-claimed programs, to forecast LMTA client numbers and expenditures for the next five years. The forecast is important considering recent amendments to the Employment Insurance (EI) act under Bill C-19. The amendments include expanding the definition of an insured participant to include more workers, and to remove the requirement that a person be unemployed. This is expected to increase LMTA client numbers and expenditures going forward. The information in this report will be used to inform discussion between the Ministry of Labour, Immigration, Training and Skills Development (MLITSD) and the Federal Government regarding expected LMTA client numbers and expenditures.
+
+
+# Data
+
+Data used for the purpose of this report includes both MLITSD's internal and external resources.
+
+## MLITSD Resources
+
+The following data sets were obtained from the System, Planning and Reporting Unit (SPRU), which is the owner of LMTA data shared with the Federal Government. 
+
+1) LMTA claim expenditures and client numbers from FY 2018-19 till Q1 of FY 2023-24 by programs under the following categories:
+
+     1. Employment Services Transformation 
+     2. Apprenticeship 
+     3. Core Training Programs 
+     4. Project-Based Programs
+     5. Labour Market Programs
+     6. Other Government Priorities
+     7. Programs that are not continued 
+     8. Other Programs Supported by time-limited COVID Response Funding 
+
+
+
+
+2) EI eligibility data from FY 2018-19 till FY 2022-23 by programs
+
+Note:
+
+    * LMTA claims and expenditures data includes programs that are case managed in CaMS or APPR and does not include WPID projects or grants or programs claimed under the Labour Market Partnership bucket such as COJG, SAO, SDF.
+
+    * LMTA data includes claims under Labour Market Development Agreements (LMDA) and Workforce Development Agreements (WDA), which together form the overall claims under LMTA.
+
+
+
+## External Resources:
+
+Several external resources were used which have been referenced in the text and links to all of these resources have been provided in the Appendix.
+
+
+## Data Quality
+
+* LMTA claims and EI eligibility data between the past five years was used i.e. FY 2018-19 and Q1 of FY 2022-24. Within this time frame, the pandemic and ensuing lock downs had a substantial impact on the overall economy and on the labour market. This impact can be seen in the client data used for the purpose of this report. 
+
+* Low number of data points for forecasting. Both the EI eligibility as well as LMTA claims data is reported yearly, resulting in low number of data points for forecasting. All forecasts below need to be viewed with the caveat in mind that due to low number of data points and the impact of COVID, the forecasts are prone to prediction error.
+
+
+
+# Methodology:
+
+
+* External resources are used to highlight outlook for the overall economy and the labour market for the next five years. 
+
+
+* One important objective of this analysis is quantitative forecasting of number of LMTA claims and expenditure for the next five years. The approach used for forecasting client numbers and expenditure is explained below:
+
+1. Forecast employment for Ontario for the next five years i.e number of people who will be employed, using historic trend for Employment.   
+
+2. Test for relationship between current employment numbers and the various variables to be forecasted (LMTA claims, LMTA expenditure etc.). If a relationship is found, values for these variables will be predicted for the next five years using employment forecasts.
+
+3. If a relationship is not found between employment and the variable to be forecasted, current trends in the distribution of these variables will be used for forecasting. 
+
+
+```{r setup, cache=FALSE, results='hide', message=FALSE, warning=FALSE, include=FALSE}
+
+# Load libraries
+
+rm(list = ls())
+
+
+
+
+library(knitr)
+library(tidyverse)
+library(readr)
+library(readxl)
+library(here)
+library(janitor)
+library(lubridate)
+library(aulib)
+library(forecast)
+library(dplyr)
+library(DT)
+library(gridExtra)
+library(ggpubr)
+library(forecast)
+library(tidymodels)
+library(cansim)
+library(modeltime)
+library(ggplot2)
+library(tidyverse)
+library(timetk)
+library(glmnet)
+library(corrplot)
+
+cl_maroon <- "#8f103c"
+cl_drk_grn <- "#035951"
+cl_teal <- "#47A6A1"
+cl_blue <- "#047cc2"
+cl_lt_blue <- "#77c1ed"
+cl_gold <- "#8f6310"
+
+
+palette <- c(cl_blue,cl_drk_grn,cl_lt_blue,cl_maroon,cl_teal,cl_gold,"#108f63","#103c8f","#8f6310") 
+
+
+```
+
+
+
+
+```{r,include=FALSE}
+# Import LMTA Input Data
+
+LMTA_2018_19_to_2023_24Q1 <- read_excel(here("data/2018-19 to 2023-24Q1 LMTA activity_updated_new.xlsx")) %>% 
+  clean_names()
+
+
+Long_2018_19_to_2023_24Q1<-
+LMTA_2018_19_to_2023_24Q1 %>% 
+  pivot_longer(
+             cols = c(3:14),
+             names_to = c("metric", "year"),
+             names_sep="_",
+             values_to ="value")
+
+  
+Long_2018_19_to_2023_24Q1[is.na(Long_2018_19_to_2023_24Q1)] = 0
+
+Long_2018_19_to_2023_24Q1<-
+  Long_2018_19_to_2023_24Q1 %>% 
+  mutate(value=case_when(metric=="expenditure"~ value*1000000,
+                         TRUE~value))
+
+Long_2018_19_to_2023_24Q1 %>% 
+saveRDS(here("data/Long_2018_19_to_2023_24Q1.rds"))
+
+
+
+EI_Status_2019_23<- read_excel(here("data/EI_join.xlsx")) %>% 
+  clean_names()
+
+EI_Status_2019_23[is.na(EI_Status_2019_23)] = 0
+
+EI_Status_2019_23<-
+EI_Status_2019_23 %>% 
+  group_by(program) %>% 
+  mutate(diff_EI=insured_ei_eligible-non_insured_claimant)
+
+EI_Status_2019_23 %>% 
+  saveRDS(here("data/EI_Status_2019_23.rds"))
+
+
+
+```
+
+```{r eval=FALSE, include=FALSE}
+
+
+httr::set_config(httr::use_proxy("204.40.130.129",3128))
+
+
+# Import LFS data
+lfs_er_raw <- get_cansim('14-10-0287-01') %>%
+  normalize_cansim_values() %>%
+  clean_names()
+```
+
+
+```{r include=FALSE}
+
+
+lfs_er_raw<- readRDS(paste0(Sys.getenv("local_dir"), "EORA/Projects/LMTA/data/lfs_er_raw.rds"))
+
+
+lfs_emp<-
+lfs_er_raw %>%
+  filter(statistics=="Estimate", geo=="Ontario",sex=="Both sexes",labour_force_characteristics=="Employment", age_group=="15 years and over", data_type=="Seasonally adjusted")%>%  
+  mutate(date=as.Date(date),
+ 
+  value=round(value,0)) %>% 
+  select(date,value)
+  
+
+  
+
+```
+
+
+
+# State of the Economy and Labor Market; Forecasts for FY 2024-25 till FY 2029-30
+
+In response to high rates of inflation,starting in March 2022, the Bank of Canada (BoC) has delivered 10 increases in its policy rate, totaling 475 basis points. As Canada has the third highest household debt to GDP ratio in the G20, after Switzerland and Australia, Canadians are highly vulnerable to increases in interest rate payments because of BoC's rate hikes. This has resulted in softer household spending, weaker economic growth, and a tight labour market so far, beginning to show signs of easing.
+
+
+Despite the increase in BoC's policy rate, inflation has not come down as much as expected. After falling to 2.8% in June 2023, it creeped up again to 4% in August and 3.8% in September. The BoC projects that inflation will stay around 3.5% until the middle of 2024 and will return to its 2% target by the end of 2025. Consumers’ inflation expectations also remain higher than they were before the pandemic, averaging 5% over the next year and 4% for the year beyond that.
+
+
+Unfortunately, for inflation to reach BoC's 2% target, the economy will need to slow down as well. The lagged nature of the impact of BoC policy rate increases also means that much of the slowdown in economic growth because of interest rate hikes is yet to come. 
+
+There are different predictions on how long the slowdown in economic growth will last. BoC predicted that GDP growth per capita will remain subdued for all of 2024. Deloitte also predicted no growth in GDP per capita till the latter half of 2024 and a slow recovery after that. It also reported that improved outlook for the trade sector, continued strong population growth and the end of BoC's rate hike cycle are playing important roles in avoiding a deeper recession.
+
+However, strong population growth is a double-edged sword. According to Statistics Canada (STATSCAN), Canada's  employment gains were being outpaced by population growth. Canada's employment increased by 81,000 on average per month since the start of 2023. Given this pace of population growth, employment growth of approximately 50,000 per month is required for the employment rate to remain constant. To put that in context, employment growth over the past six months from March to September has averaged 30,217 per month and is expected to decrease further going forward.
+
+All of this has started to impact the labor market. Highlights from the MLITSD Strategic Policy Division's latest report for Labour Market Conditions in Ontario for the third Quarter of 2023 and September 2023 show:
+
+
+* Ontario’s unemployment rate rose from 5.9% in August to 6.0% in September as the number of unemployed rose by 3,100. 
+
+* September’s unemployment rate was the highest rate recorded since January 2022 and exceeded the February 2020 pre-COVID rate of 5.6%. 
+
+* Ontario's job vacancy rate fell to 3.9% in the second quarter of 2023, the fourth consecutive quarterly drop from a record high of 5.6%, as the number of unfilled jobs fell by 9.3%.
+
+
+Given that economic growth is expected to remain subdued at least till the end of FY 2024-2025, unemployment rates are set to continue increasing over the same period. Thereafter, the economy is expected to recover slowly and there may not be decent growth in GDP per capita till FY 2028-2029. Also, inflation is not expected to reach its target of 2% by the end of 2025 and there are many upside risks which may push these inflation projections even further into the future. Some examples of these risks are high inflation expectations of households and businesses and high oil prices, and disruptions to supply chains of other goods and raw materials because of the escalation of ongoing geopolitical events such as conflicts in Ukraine and the Middle East.
+
+
+
+## Forecast for Employment
+
+The graph below shows employment in Ontario from January 1976 till October 2023. The overall trend shows an almost linear increase in employment. The most striking deviation from the trend was in the year 2020 due to the impact of COVID on the labour market.
+
+
+
+```{r echo=FALSE}
+lfs_emp %>% plot_time_series(date, value)
+```
+
+
+```{r include=FALSE}
+emp_split<-
+time_series_split(lfs_emp,
+                  assess="6 years",
+                  cumulative=T)
+
+
+emp_split %>% 
+  tk_time_series_cv_plan() %>% 
+  plot_time_series_cv_plan(date,value)
+
+
+
+
+arima_model <-arima_reg() %>% 
+  set_engine("auto_arima") %>% 
+  fit(value~date,training(emp_split))
+
+
+```
+
+
+
+
+
+```{r include=FALSE, message=FALSE, warning=FALSE}
+glmnet_model<-linear_reg(penalty = 0.01) %>% 
+  set_engine("glmnet") %>% 
+  fit(value~month(date,label = T)
+      + as.numeric(date),
+      training(emp_split)
+      )
+
+
+model_tbl<-modeltime_table(arima_model,glmnet_model)
+
+
+calib_tbl<-model_tbl %>% 
+  modeltime_calibrate(testing(emp_split))
+
+
+calib_tbl %>% modeltime_accuracy()
+
+
+calib_tbl %>% 
+modeltime_forecast(
+  new_data = testing(emp_split),
+  actual_data = lfs_emp
+) %>% 
+  plot_modeltime_forecast()
+
+```
+
+
+
+The Forecast Plot below shows forecasted Employment for the next 6 years i.e. till October 2029, using two methods:
+
+1. ARIMA (represented by the red line)
+2. GLMNET (represented by the green line)
+
+Clicking on either method can toggle off that method so that only the other method is shown. Also, hovering the cursor over the trend line displays more information such as date, Actual Vs Predicted value and the confidence interval for predicted values. 
+
+The second method (GLMNET), in green, represents a better fit to expectations for the economy going forward i.e. employment is predicted to decrease and then increase at a gradual rate due to the expected slowdown in GDP growth. Therefore, predictions using this method will be used going forward. 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+
+future_forecast_tbl<-calib_tbl %>% 
+  modeltime_refit(lfs_emp) %>% 
+  modeltime_forecast(h="6 years",
+                     actual_data = lfs_emp)
+
+future_forecast_tbl %>% 
+  plot_modeltime_forecast()
+
+
+
+```
+
+
+    * The table below represents the actual and predicted Employment in Ontario between FY 2018-19 and FY 2028-29.For simplicity of notation, FY 2018-19 has been termed as "2019", FY 2019-20 as “2020", and so on. Employment corresponding to each fiscal year is the average of employment of all the months in that FY.
+    
+    *  Each Fiscal Year begins on April 1 and ends on March 31, the following year. For example, FY 2018-19 represents the time period between April 1 2018 and March 31 2019.
+
+    * For FY 2023-24, actual employment has been used for April 2023 to October 2023 and predicted values have been used for November 2023 till March 2024.
+    
+    * The table shows that employment will fall in FY 2024-25 and then will start to increase thereafter, gradually approaching its historic trend.
+
+
+```{r echo=FALSE}
+
+
+emp_forecast<-
+future_forecast_tbl[c((505:574),647:718),] %>% 
+#  filter(.model_id==1)%>%
+  select(date=.index,value=.value) %>% 
+  filter(date>"2018-03-31", date<"2029-04-01") %>% 
+  mutate(year=as.numeric(case_when(
+    date>"2018-03-31" & date<"2019-04-01"~2019,
+    date>"2019-03-31" & date<"2020-04-01"~2020,
+    date>"2020-03-31" & date<"2021-04-01"~2021,
+    date>"2021-03-31" & date<"2022-04-01"~2022,
+    date>"2022-03-31" & date<"2023-04-01"~2023,
+    date>"2023-03-31" & date<"2024-04-01"~2024,
+    date>"2024-03-31" & date<"2025-04-01"~2025,
+    date>"2025-03-31" & date<"2026-04-01"~2026,
+    date>"2026-03-31" & date<"2027-04-01"~2027,
+    date>"2027-03-31" & date<"2028-04-01"~2028,
+    date>"2028-03-31" & date<"2029-04-01"~2029,
+    date>"2029-03-31" & date<"2030-04-01"~2030,
+    TRUE~NA
+    ))) %>% 
+  select(year, value) %>% 
+   group_by(year) %>% 
+   summarise_at(vars(value), list(value = mean)) %>% 
+   mutate(value=round(value,0)) %>% 
+   select(year, emp=value) 
+
+
+
+
+
+datatable(
+  emp_forecast,
+  caption= "Table 1: Actual and Predicted Mean Employment in Ontario; FY 2018-19 till FY 2028-29",
+colnames = c("Year", "Employment"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,1))))) %>% 
+   formatRound(2, digits = 0, mark = ",")
+
+```
+
+
+## Sum of EI Eligible and non-EI eligible Clients
+
+
+Figure 1 and Table 2 below show the sum of EI eligible and non-EI eligible clients by year, which is the main variable of interest given the amendments to the EI act discussed above. Given that the definition of an insured participant is being expanded to include more workers, we could potentially see several clients who are currently under the non-EI eligible category being added to the EI eligible category. 
+
+Therefore, the current sum of EI eligible and non-EI eligible clients provides a good estimate of the expected number of EI eligible clients who will also be eligible for LMTA claims. 
+
+This sum excludes those who do not have 'EI attachment' and those who did not have a SIN or had an invalid SIN. These clients were not counted under EI eligible nor under the 'non-EI eligible' category. Some of these individuals may become EI eligible in the future however it is impossible to estimate their number at this stage and are excluded.
+
+Figure 1(a) on the left shows a decreasing trend but mainly due to low client numbers during the pandemic. Figure 1(b) on the right shows an increasing trend for the three most recent years.
+
+
+
+
+```{r echo=FALSE, warning=FALSE, include=FALSE,message=FALSE}
+
+Sum_EI_2019_23<-
+EI_Status_2019_23 %>%
+  filter(program=="Grand Total") %>% 
+ggplot(aes(x=as.numeric(year), y=total_by_program)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+    scale_y_continuous(labels = label_comma(), limits = c(0,350000))+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+    labs(title= "(a) Sum of EI Eligible and \n Non-Eligible Client Numbers",
+         subtitle = "2019-2023",
+           y="Client Numbers",
+         x="Year")+
+      theme(title = element_text(size=10, colour = cl_gold, face = "bold"))
+
+Sum_EI_2021_23<-
+EI_Status_2019_23 %>%
+  filter(program=="Grand Total") %>% 
+        filter(year!=2019, year!=2020)%>% 
+ggplot(aes(x=as.numeric(year), y=total_by_program)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+    scale_y_continuous(labels = label_comma(), limits = c(0,350000))+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+    labs(title= "(b) Sum of EI Eligible and \n Non-Eligible Client Numbers",
+         subtitle = "2021-2023",
+           y="Client Numbers",
+         x="Year")+
+      theme(title = element_text(size=10, colour = cl_gold, face = "bold"))+
+  expand_limits(x=c(2019,2023))
+
+plot1<-grid.arrange(Sum_EI_2019_23,Sum_EI_2021_23,ncol=2)
+
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, width="1000000"}
+
+annotate_figure(plot1, top = text_grob("Figure 1: Sum of EI Eligible and non-EI Eligible Client Numbers by Year", 
+               color = cl_blue, face = "bold", size = 14)) 
+
+
+
+```
+
+
+
+```{r echo=FALSE}
+
+
+datatable(
+EI_Status_2019_23 %>% 
+filter(program=="Grand Total") %>%
+  ungroup() %>% 
+  select(year, total_by_program),
+  caption= "Table 2: Sum of EI Eligible and non-EI Eligible Clients by Fiscal Year",
+colnames = c("Year", "Number of Clients"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,1))))) %>% 
+   formatRound(2, digits = 0, mark = ",")
+
+
+```
+
+
+```{r include=FALSE}
+
+
+Sum_EI<-
+EI_Status_2019_23 %>% 
+filter(program=="Grand Total", year!=2019,year!=2020
+) %>% 
+  ungroup() %>% 
+  select(year, total_by_program)
+
+
+join_EI_emp<-
+inner_join(emp_forecast,Sum_EI, by="year")
+
+
+
+```
+
+
+
+
+## Forecast: Sum of EI Eligible and non-EI eligible Clients
+
+The following analysis will test for relationship between employment and number of EI clients. If a relationship is found, number of EI clients will be predicted for the next five years using employment forecasts.
+
+
+
+The number below represents the correlation between employment and EI clients between FY 2020-21 and FY 2022-23, the three most recent years. A correlation of 0.99 represents a very strong correlation between employment and EI clients and therefore, employment can be used to forecast number of EI clients.
+
+
+
+
+```{r echo=FALSE}
+cor(join_EI_emp$emp, join_EI_emp$total_by_program)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+cor.test(join_EI_emp$emp, join_EI_emp$total_by_program)
+
+```
+
+
+
+
+
+Figure 2 below shows the relationship between employment and EI clients, represented by the blue line. The relationship approximates to a direct linear relationship, represented by the gray trend line. This implies that EI clients increase as employment increases and vice versa.
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+
+join_EI_emp %>% 
+  ggplot(aes(emp, total_by_program))+
+  geom_line(alpha=0.8, size=1.2, color=cl_blue)+
+  geom_smooth(method=lm, se=F, colour = "darkgray", size = 1)+
+  labs(title= "Figure 2: EI Clients by Employment in Ontario",
+         x="Employment in Ontario",
+           y="Number of EI Clients")+
+  theme(title = element_text(size=10, colour = cl_gold, face = "bold"))
+
+
+```
+
+Therefore, we can fit a linear model between the two variables for the purpose of forecasting. 
+
+Table 3 below shows forecasts for 'Employment' as well as 'EI Client Forecast', which is forecast for the sum of EI eligible and non-EI eligible clients. 'Year' 2024 shows forecast for all of FY 2023-24 i.e. April 1 2023 to March 31 2024. Forecasts for the following five years till FY 2028-29 are also shown.
+
+
+```{r include=FALSE}
+model_EI<-
+lm(total_by_program~emp, data = join_EI_emp)
+
+
+```
+
+
+
+```{r echo=FALSE}
+
+emp_forecast_test<-
+emp_forecast %>%
+        filter(year>2023)%>%
+  select(emp)
+
+
+y <- predict.lm(model_EI, data.frame(emp=emp_forecast_test))  
+                                    
+
+y<-as.data.frame(y)
+
+
+EI_forecast<-
+cbind(emp_forecast %>%
+        filter(year>2023),y) 
+
+datatable(
+EI_forecast, 
+  caption= "Table 3: Forecast EI Client Numbers; FY 2023-24 till FY 2028-29",
+colnames = c("Year", "Employment", "EI Client Forecast"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0:2))))) %>% 
+   formatRound(c(2,3), digits = 0, mark = ",")
+
+
+
+
+```
+
+
+Summary:
+
+*As can be seen in Figure 1(b), there has been an increasing trend in sum of EI eligible and non-EI eligible clients in the three most recent years as numbers recover from the drop during the pandemic. Table 3 above shows that numbers are expected to continue increasing till FY 2028-29. Given that the definition of an insured participant is expanding, more non-EI eligible clients will become EI eligible. Therefore, the forecasts for the sum of EI eligible and non-EI eligible clients represent the upper bound for EI clients expected in the future* 
+
+
+
+# LMTA Claims
+## Claim Numbers
+
+Figure 3 below shows LMTA claim numbers for each of the years from FY 2018-19 till FY 2022-23. The trend line shows a slight increase in claims. Claims fell in FY 2019-20 and FY 2020-21 but recovered thereafter and reached pre pandemic levels. In fact, claims for the most recent FY 2022-23 are higher than claims in FY 2018-19 as shown in Table 4 below.
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+
+Long_2018_19_to_2023_24Q1 %>% 
+  filter(program_category=="Total Activity") %>% 
+  filter(program=="Total") %>% 
+  filter(metric=="activity") %>% 
+  filter(year!=c(2024)) %>% 
+#  filter(program_category=="Employment Services Transformation") %>% 
+ggplot(aes(x=as.numeric(year), y=value)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+  scale_y_continuous(labels = label_comma())+
+    labs(title= "Figure 3: LMTA Claim Numbers by Year",
+         x="Year",
+           y="Claim Numbers")+
+    theme(legend.position = "null")+
+        theme(title = element_text(size=12, colour = cl_gold, face = "bold"))
+
+```
+
+
+
+```{r echo=FALSE}
+
+
+datatable(
+Long_2018_19_to_2023_24Q1 %>% 
+  filter(program_category=="Total Activity") %>% 
+  filter(program=="Total") %>% 
+  filter(metric=="activity") %>% 
+    filter(year!=c(2024)) %>% 
+  group_by(year) %>% 
+  summarise(mean=mean(value)),
+      caption= "Table 4: LMTA Claim Numbers by Year",
+colnames = c("Year", "Claim Number"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,1))))) %>% 
+   formatRound(2, digits = 0, mark = ",")
+
+
+```
+
+```{r include=FALSE}
+
+LMTA_claims<-
+Long_2018_19_to_2023_24Q1 %>% 
+  filter(program_category=="Total Activity") %>% 
+  filter(program=="Total") %>% 
+  filter(metric=="activity") %>% 
+  filter(year!=c(2024)) %>% 
+  group_by(year) %>% 
+  summarise(mean=round(mean(value),2)) %>% 
+  mutate(year=as.numeric(year))
+
+
+
+join_LMTA_emp<-
+inner_join(emp_forecast,LMTA_claims, by="year")
+
+
+
+```
+
+
+## LMTA Claim Forecast:
+
+The following analysis will test for relationship between employment and LMTA claims. If a relationship is found, number of LMTA claims will be predicted for the next five years using the employment forecasts.
+
+
+The number below represents the correlation between employment and number of LMTA claims between FY 2018-19 and FY 2022-23. 
+
+
+```{r echo=FALSE}
+cor(join_LMTA_emp$emp, join_LMTA_emp$mean)
+
+```
+
+```{r eval=FALSE, include=FALSE}
+cor.test(join_LMTA_emp$emp, join_LMTA_emp$mean)
+
+```
+
+
+While not statistically significant, a correlation of 0.77 still represents a strong correlation between employment and LMTA claims and therefore, employment can be used to predict number of LMTA claims.
+
+
+
+```{r eval=FALSE, include=FALSE}
+cordata = join_LMTA_emp[,c(2,3)]
+corr <- round(cor(cordata), 1)
+corr
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+plot(join_LMTA_emp$emp, join_LMTA_emp$mean, main="Correlation between Unemployment and LMTA clients", xlab="Unemployment Number", ylab="number of EI clients")
+
+```
+
+
+
+Figure 3 below shows the relationship between employment and LMTA claims, represented by the blue line. Despite limited number of data points and fluctuation in both employment and LMTA claim numbers due to COVID, we can see that the relationship approximates to a direct linear relationship (gray trend line). This implies that LMTA claims increase as employment increases and vice versa.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+join_LMTA_emp %>% 
+  ggplot(aes(emp, mean))+
+  geom_line(alpha=0.8, size=1.2, color=cl_blue)+
+  geom_smooth(method=lm, se=F, colour = "darkgray", size = 1)+
+  labs(title= "Figure 4: LMTA Claim Numbers by Employment in Ontario",
+         x="Employment in Ontario",
+           y="LMTA Claim Numbers")+
+  theme(title = element_text(size=10, colour = cl_gold, face = "bold"))
+
+```
+
+Therefore, we can fit a linear model between the two variables for the purpose of prediction.
+
+Table 5 below shows forecasts for 'Employment' as well as 'LMTA Client Forecast'. 
+
+```{r include=FALSE}
+model<-
+lm(mean~emp, data = join_LMTA_emp)
+
+
+```
+
+
+
+```{r echo=FALSE}
+
+emp_forecast_test<-
+emp_forecast %>%
+        filter(year>2023)%>%
+  select(emp)
+
+
+y <- predict.lm(model, data.frame(emp=emp_forecast_test))  
+                                    
+
+y<-as.data.frame(y)
+
+
+LMTA_forecast<-
+cbind(emp_forecast %>%         
+        filter(year>2023),y) 
+
+datatable(
+LMTA_forecast %>% 
+ # mutate(y=round(y,0)) %>% 
+  filter(year>2023), 
+  caption= "Table 5: Forecast LMTA Claim Numbers - FY 2023-24 till FY 2028-29",
+colnames = c("Year", "Employment", "LMTA Claim Forecast"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0:2))))) %>% 
+   formatRound(c(2,3), digits = 0, mark = ",")
+
+
+
+
+```
+
+Summary:
+
+*Despite decrease in LMTA claims during COVID, the overall trend has been for claims to increase from FY 2018-19 till FY 2022-23 (Figure 3). This trend will continue to increase as shown in Table 5 that LMTA claims are expected to continue increasing till FY 2028-29.*
+
+
+
+## Claim Expenditure
+
+Figure 5 and Table 6 below show LMTA claim expenditures for each of the years from FY 2018-19 till FY 2023-24.
+
+Figure 5(a) on the left shows an increasing trend in claim expenditure for the full period. Claim expenditure during FY 2020-21 and FY 2021-22 is higher than the overall trend. This increase in claim expenditure, despite the fall in claim numbers around the same time shown in Figure 4, could have been a result of more intensive and longer duration of employment services required for clients during the pandemic.
+
+Figure 5(b) on the right shows the trend when excluding FY 2020-21 and FY 2021-22. Even removing the two outliers, the trend is still increasing at the same rate as the full period. 
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+
+LMTA_2019_23<-
+Long_2018_19_to_2023_24Q1 %>% 
+  filter(metric=="expenditure") %>% 
+  filter(program=="Total") %>% 
+  filter(program_category=="TOTAL PROGRAM CLAIM/PROJECTED CLAIM") %>% 
+  #mutate(value=value*1000000) %>% 
+ggplot(aes(x=as.numeric(year), y=value)) + 
+geom_bar(stat = "identity", 
+         fill=cl_maroon)+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+      scale_y_continuous(labels = label_comma())+
+  labs(title= "(a) LMTA Claim \n Expenditure by Year",
+       subtitle = "2019-2024",
+         x="Year",
+           y="Claim Expenditure")+
+    theme(legend.position = "null")+
+        theme(title = element_text(size=12, colour = cl_gold, face = "bold"))
+
+LMTA_2019_20_23_24<-
+Long_2018_19_to_2023_24Q1%>% 
+  filter(metric=="expenditure") %>% 
+  filter(program=="Total") %>%
+  filter(program_category=="TOTAL PROGRAM CLAIM/PROJECTED CLAIM") %>% 
+      filter(year!=2021, year!=2022)%>% 
+ # mutate(value=value*1000000) %>% 
+ggplot(aes(x=as.numeric(year), y=value)) + 
+geom_bar(stat = "identity", 
+         fill=cl_maroon)+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+      scale_y_continuous(labels = label_comma())+
+  labs(title= "(b) LMTA Claim \n Expenditure",
+       subtitle = "2019,2020,2023,2024",
+         x="Year",
+           y="Claim Expenditure")+
+    theme(legend.position = "null")+
+        theme(title = element_text(size=12, colour = cl_gold, face = "bold"))
+
+plot6<-grid.arrange(LMTA_2019_23,LMTA_2019_20_23_24,ncol=2)
+
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, width="1000000"}
+
+annotate_figure(plot6, top = text_grob("Figure 5: LMTA Claim Expenditure by Year", 
+               color = cl_blue, face = "bold", size = 14)) 
+
+
+
+```
+
+
+
+```{r echo=FALSE}
+
+
+datatable(
+Long_2018_19_to_2023_24Q1%>% 
+  filter(program_category=="TOTAL PROGRAM CLAIM/PROJECTED CLAIM") %>% 
+  filter(program=="Total") %>% 
+  filter(metric=="expenditure") %>% 
+  group_by(year) %>% 
+  summarise(mean=mean(value)),
+      caption= "Table 6: Claim Expenditure by Year",
+colnames = c("Year", "Claim Expenditure"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,1))))) %>% 
+   formatRound(2, digits = 0, mark = ",") %>% 
+  formatCurrency(2)
+
+
+```
+
+
+```{r include=FALSE}
+
+LMTA_exp<-
+Long_2018_19_to_2023_24Q1 %>% 
+  filter(program_category=="TOTAL PROGRAM CLAIM/PROJECTED CLAIM") %>% 
+  filter(program=="Total") %>% 
+  filter(metric=="expenditure") %>% 
+  group_by(year) %>% 
+  summarise(mean=round(mean(value),2)) %>% 
+  mutate(year=as.numeric(year))
+
+
+
+join_exp_emp<-
+inner_join(emp_forecast,LMTA_exp, by="year")
+
+
+
+```
+
+
+## LMTA Expenditure Forecast:
+
+The following analysis will test for relationship between employment and LMTA Expenditure. If a relationship is found, LMTA claims expenditure will be predicted for the next five years using employment forecasts.
+
+The number below represents the correlation between employment and LMTA claim expenditure between FY 2018-19 and FY 2022-23. 
+
+
+```{r echo=FALSE}
+cor(join_exp_emp$emp, join_exp_emp$mean)
+
+```
+
+```{r eval=FALSE, include=FALSE}
+cor.test(join_exp_emp$emp, join_exp_emp$mean)
+
+```
+
+
+A correlation of -0.13 represents a weak negative correlation between employment and LMTA claims expenditure and therefore, employment CANNOT be used to predict number of LMTA claims.
+
+
+Table 7 below represents LMTA claim expenditure projections obtained using Holt's Trend Method. This method is used to forecast future values based on the existing trend in LMTA claims expenditure. The 'Forecast' for LMTA expenditure is given alongside the lower and upper bounds based on the confidence interval.
+
+
+
+Holt's Trend Method
+
+```{r include=FALSE}
+
+LMTA_exp_ts<-ts(LMTA_exp[,2],start=2019,end = 2024, frequency = 1)
+
+
+holt_model <- holt(LMTA_exp_ts, h = 5)
+
+
+forecast_holt<-
+  forecast(holt_model)
+
+ forecast_holt<-
+   as.data.frame(holt_model)
+
+    
+forecast_holt<-
+forecast_holt[1:5, ]%>% 
+  rownames_to_column(var="Year") %>% 
+  rename(Forecast=`Point Forecast`) %>% 
+  rename(Range_low=`Lo 80`) %>%
+  mutate(Range_low=round(Range_low,0)) %>% 
+  rename(Range_high=`Hi 80`) %>% 
+  select(-`Lo 95`, -`Hi 95`) %>% 
+  mutate(Method="Holt's Trend") %>% 
+  select(Year,Forecast, Range_low, Range_high)
+
+```
+
+
+
+
+
+```{r echo=FALSE}
+datatable(
+  forecast_holt,
+  caption= "Table 7: Forecast of LMTA claims expenditure in EO Programs",
+colnames = c("Year", "Forecast", "Lower Bound", "Upper Bound"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,3))))) %>% 
+   formatRound(c(2:4), digits = 0, mark = ",") %>% 
+  formatCurrency(c(2:4))
+```
+
+
+Summary
+
+*Trend from FY 2018-19 till FY 2023-24 shows an increasing trend in LMTA claim expenditure. With GDP growth expected to remain subdued in the near term, forecast for LMTA claim expenditures is to increase till the end of FY 2028-29 (Table 7) *
+
+
+# Appendix
+
+
+
+## EI Eligible,  Non-Eligible Clients
+
+Figure 5 below shows trend for number of EI eligible clients. There is a decreasing trend mainly due to the decrease in overall client numbers during the pandemic.
+
+Also, with EI benefits being paid for up to 45 weeks in Ontario, clients who became unemployed early in the pandemic would have used their EI benefits and become ineligible thereafter.
+
+However, the trend has reversed since the pandemic and EI eligible clients have started to increase again. 
+
+Figure 6(a) on the left shows the overall trend between FY 2018-19 till FY 2022-23. There is a decreasing trend overall. 
+
+
+Figure 6(b) on the right shows the trend between FY 2020-21 and FY 2022-23 i.e. last three years. The trend for the last three years has been increasing, showing that the client numbers are quickly returning to pre pandemic levels.
+
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE,include=FALSE}
+
+EI_Eligible_2019_23<-
+EI_Status_2019_23 %>%
+  filter(program=="Grand Total") %>% 
+ggplot(aes(x=as.numeric(year), y=insured_ei_eligible)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+    scale_y_continuous(labels = label_comma(), limits = c(0,200000))+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+    labs(title= "(a) EI Eligible Client \n Numbers",
+         subtitle = "2019-2023",
+           y="Client Numbers",
+         x="Year")+
+    theme(title = element_text(size=12, colour = cl_gold, face = "bold"))
+
+EI_Eligible_2021_23<-
+EI_Status_2019_23 %>%
+  filter(program=="Grand Total") %>% 
+        filter(year!=2019, year!=2020)%>% 
+ggplot(aes(x=as.numeric(year), y=insured_ei_eligible)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+    scale_y_continuous(labels = label_comma(), limits = c(0,200000))+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+    labs(title= "(b) EI Eligible Client \n Numbers",
+         subtitle = "2021,2022,2023",
+           y="Client Numbers",
+         x="Year")+
+  expand_limits(x=c(2019,2023))+
+    theme(title = element_text(size=12, colour = cl_gold, face = "bold"))
+
+
+plot1<-grid.arrange(EI_Eligible_2019_23,EI_Eligible_2021_23, ncol=2)
+
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, width="1000000"}
+
+annotate_figure(plot1, top = text_grob("Figure 6: Number of EI Eligible Clients in EO Programs by Fiscal Year", 
+               color = cl_blue, face = "bold", size = 14)) 
+
+
+```
+
+
+Table 8 below shows the actual numbers of EI eligible clients in EO programs by fiscal year. 
+
+```{r echo=FALSE}
+
+
+datatable(
+EI_Status_2019_23 %>% 
+filter(program=="Grand Total") %>%
+  ungroup() %>% 
+  select(year, insured_ei_eligible),
+  caption= "Table 8: Number of EI Eligible Clients in EO Programs by Fiscal Year",
+colnames = c("Year", "Number of Clients"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,1))))) %>% 
+   formatRound(2, digits = 0, mark = ",")
+
+
+```
+
+
+
+  
+
+
+*Forecast for the number of EI eligible clients being served is that they will keep increasing till FY 2028-29* 
+
+
+Figure 7 below shows trend for number of 'Non-EI eligible' clients, which is an important variable, given the amendments to the EI act under Bill C-19. 
+
+Under the Bill, the definition of an insured participant would be expanded to include more workers, and to remove the requirement that a person be unemployed. This would potentially add several clients who are currently under the non-EI eligible category to the EI eligible category. 
+
+Figure 7(a) on the left shows the overall trend between FY 2018-19 till FY 2022-23. There is a decreasing trend overall. 
+
+
+Figure 7(b) on the right shows the trend between FY 2020-21 and FY 2022-23 i.e. last three years. The trend for the last three years has been increasing, showing that the client numbers are quickly returning to pre pandemic levels.
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+Non_Eligible_2019_23<-
+EI_Status_2019_23 %>%
+  filter(program=="Grand Total") %>% 
+ggplot(aes(x=as.numeric(year), y=non_insured_claimant)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+    scale_y_continuous(labels = label_comma(), limits = c(0,150000))+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+    labs(
+      title= "(a) Non-EI Eligible Client Numbers",
+         subtitle = "2019-2023",
+           y="Client Numbers",
+         x="Year")+
+  theme(title = element_text(size=10, colour = cl_gold, face = "bold"))
+
+Non_Eligible_2021_23<-
+  EI_Status_2019_23 %>%
+  filter(program=="Grand Total") %>% 
+  filter(year!=2021)%>% 
+ggplot(aes(x=as.numeric(year), y=non_insured_claimant)) + 
+geom_bar(stat = "identity", fill=cl_maroon)+
+    scale_y_continuous(labels = label_comma(), limits = c(0,150000))+
+  geom_smooth(aes(fill=NULL),  method=lm, se=FALSE, col=cl_blue)+
+    labs(
+      title= "(b) Non-EI Eligible Client Numbers",
+         subtitle = "2021-2023",
+           y="Client Numbers",
+         x="Year")+
+  expand_limits(x=c(2019,2023))+
+  theme(title = element_text(size=10, colour = cl_gold, face = "bold"))
+
+
+plot2<-grid.arrange(Non_Eligible_2019_23,Non_Eligible_2021_23, ncol=2)
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, width="1000000"}
+
+annotate_figure(plot2, top = text_grob("Figure 7: Non-EI Eligible Client Numbers by Fiscal Year", 
+               color = cl_blue, face = "bold", size = 14)) 
+
+
+
+```
+
+```{r echo=FALSE}
+
+
+datatable(
+EI_Status_2019_23 %>% 
+filter(program=="Grand Total") %>%
+  ungroup() %>%
+  select(year, non_insured_claimant),
+  caption= "Table 9: Number of Non-EI Eligible Clients by Fiscal Year",
+colnames = c("Year", "Number of Clients"),
+rownames = FALSE,
+    options = list(info = FALSE,
+    paging = FALSE,
+    searching = FALSE,
+    columnDefs = list(list
+                      (className = 'dt-center', targets = c(0,1))))) %>% 
+   formatRound(2, digits = 0, mark = ",")
+
+
+```
+
+
+
+*As can be seen in Figure 2(b), there has been an increasing trend in number of non-EI eligible clients since the pandemic. Therefore, forecast for the number of non-EI eligible clients being served is that they will keep increasing till the end of FY 2028-29.*
+
+
+1. https://www2.deloitte.com/content/dam/Deloitte/ca/Documents/finance/ca-economic-outlook-september-2023-report-aoda-en.pdf
+
+2. https://www.conferenceboard.ca/in-fact/canadas-five-year-outlook-overview-labour-market_oct2023/
+
+3. https://www.bankofcanada.ca/2023/10/mpr-2023-10-25/
+
+4. https://ontariogov.sharepoint.com/sites/LMReport/SitePages/Labour-Market.aspx?web=1
+
+5. https://www150.statcan.gc.ca/n1/daily-quotidien/230908/dq230908a-eng.htm?HPA=1&indid=3587-2&indgeo=0
+
+
+
+
+
+
+
+
+

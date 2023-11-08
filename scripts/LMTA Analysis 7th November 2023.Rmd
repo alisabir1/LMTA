@@ -72,7 +72,7 @@ The following data sets were obtained from the System, Planning and Reporting Un
 
 Note:
 
-    * LMTA claims and expenditures data includes programs that are case managed in CaMs or APPR and does not include WPID projects or grants or programs claimed under the Labour Market Partnership bucket such as COJG, SAO, SDF.
+    * LMTA claims and expenditures data includes programs that are case managed in CaMS or APPR and does not include WPID projects or grants or programs claimed under the Labour Market Partnership bucket such as COJG, SAO, SDF.
 
     * LMTA data includes claims under Labour Market Development Agreements (LMDA) and Workforce Development Agreements (WDA), which together form the overall claims under LMTA.
 
@@ -80,7 +80,7 @@ Note:
 
 ## External Resources:
 
-A number of external resources were used which have been referenced in the text and links to all of these resources have been provided in the Appendix.
+Several external resources were used which have been referenced in the text and links to all of these resources have been provided in the Appendix.
 
 
 ## Data Quality
@@ -235,7 +235,7 @@ lfs_er_raw %>%
 
 # State of the Economy and Labor Market; Forecasts for FY 2024-25 till FY 2029-30
 
-In response to high rates of inflation,starting in March 2022, the Bank of Canada (BoC) has delivered 10 increases in its policy rate, totaling 475 basis points. As Canada has the third highest household debt to GDP ratio in the G20, after Switzerland and Australia, Canadians are highly vulnerable to increases in interest rate payments because of BoC's rate hikes. This has resulted in softer household spending, weaker economic growth and a tight labour market so far, beginning to show signs of easing.
+In response to high rates of inflation,starting in March 2022, the Bank of Canada (BoC) has delivered 10 increases in its policy rate, totaling 475 basis points. As Canada has the third highest household debt to GDP ratio in the G20, after Switzerland and Australia, Canadians are highly vulnerable to increases in interest rate payments because of BoC's rate hikes. This has resulted in softer household spending, weaker economic growth, and a tight labour market so far, beginning to show signs of easing.
 
 
 Despite the increase in BoC's policy rate, inflation has not come down as much as expected. After falling to 2.8% in June 2023, it creeped up again to 4% in August and 3.8% in September. The BoC projects that inflation will stay around 3.5% until the middle of 2024 and will return to its 2% target by the end of 2025. Consumers’ inflation expectations also remain higher than they were before the pandemic, averaging 5% over the next year and 4% for the year beyond that.
@@ -245,7 +245,7 @@ Unfortunately, for inflation to reach BoC's 2% target, the economy will need to 
 
 There are different predictions on how long the slowdown in economic growth will last. BoC predicted that GDP growth per capita will remain subdued for all of 2024. Deloitte also predicted no growth in GDP per capita till the latter half of 2024 and a slow recovery after that. It also reported that improved outlook for the trade sector, continued strong population growth and the end of BoC's rate hike cycle are playing important roles in avoiding a deeper recession.
 
-However, strong population growth is a double-edged sword. According to Statistics Canada(STATSCAN), Canada's  employment gains were being outpaced by population growth. Canada's employment increased by 81,000 on average per month since the start of 2023. Given this pace of population growth, employment growth of approximately 50,000 per month is required for the employment rate to remain constant. To put that in context, employment growth over the past six months from March to September has averaged 30,217 per month and is expected to decrease further going forward.
+However, strong population growth is a double-edged sword. According to Statistics Canada (STATSCAN), Canada's  employment gains were being outpaced by population growth. Canada's employment increased by 81,000 on average per month since the start of 2023. Given this pace of population growth, employment growth of approximately 50,000 per month is required for the employment rate to remain constant. To put that in context, employment growth over the past six months from March to September has averaged 30,217 per month and is expected to decrease further going forward.
 
 All of this has started to impact the labor market. Highlights from the MLITSD Strategic Policy Division's latest report for Labour Market Conditions in Ontario for the third Quarter of 2023 and September 2023 show:
 
@@ -257,13 +257,13 @@ All of this has started to impact the labor market. Highlights from the MLITSD S
 * Ontario's job vacancy rate fell to 3.9% in the second quarter of 2023, the fourth consecutive quarterly drop from a record high of 5.6%, as the number of unfilled jobs fell by 9.3%.
 
 
-Given that economic growth is expected to remain subdued at least till the end of FY 2024-2025, unemployment rates are set to continue increasing over the same period. Thereafter, the economy is expected to recover slowly and there may not be decent growth in GDP per capita till FY 2028-2029. Also, inflation is not expected to reach its target of 2% by the end of 2025 and there are many upside risks which may push these inflation projections even further into the future. Some examples of these risks are high inflation expectations of households and businesses and high oil prices, and disruptions to supply chains of other goods and raw materials because of escalation of ongoing Middle East crisis.
+Given that economic growth is expected to remain subdued at least till the end of FY 2024-2025, unemployment rates are set to continue increasing over the same period. Thereafter, the economy is expected to recover slowly and there may not be decent growth in GDP per capita till FY 2028-2029. Also, inflation is not expected to reach its target of 2% by the end of 2025 and there are many upside risks which may push these inflation projections even further into the future. Some examples of these risks are high inflation expectations of households and businesses and high oil prices, and disruptions to supply chains of other goods and raw materials because of the escalation of ongoing geopolitical events such as conflicts in Ukraine and the Middle East.
 
 
 
 ## Forecast for Employment
 
-The graph below shows Employment in Ontario from January, 1976 till October 2023. The overall trend shows an almost linear increase in employment. The most striking deviation from the trend was in the year 2020 due to the impact of COVID on the labour market.
+The graph below shows employment in Ontario from January 1976 till October 2023. The overall trend shows an almost linear increase in employment. The most striking deviation from the trend was in the year 2020 due to the impact of COVID on the labour market.
 
 
 
@@ -334,7 +334,7 @@ The Forecast Plot below shows forecasted Employment for the next 6 years i.e. ti
 
 Clicking on either method can toggle off that method so that only the other method is shown. Also, hovering the cursor over the trend line displays more information such as date, Actual Vs Predicted value and the confidence interval for predicted values. 
 
-The second method (GLMNET), in green, represents a better fit to expectations for the economy going forward i.e. employment is predicted to decrease/remain constant due to the expected slowdown in GDP growth. Therefore, predictions using this method will be used going forward. 
+The second method (GLMNET), in green, represents a better fit to expectations for the economy going forward i.e. employment is predicted to decrease and then increase at a gradual rate due to the expected slowdown in GDP growth. Therefore, predictions using this method will be used going forward. 
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
@@ -353,7 +353,7 @@ future_forecast_tbl %>%
 ```
 
 
-    * The table below represents the actual and predicted Employment in Ontario between fiscal year (FY) 2018-19 and FY 2028-29.For simplicity of notation, FY 2018-19 has been termed as "2019", FY 2019-20 as “2020", and so on.Employment corresponding to each fiscal year is the average of employment of all the months in that FY.
+    * The table below represents the actual and predicted Employment in Ontario between fiscal year (FY) 2018-19 and FY 2028-29.For simplicity of notation, FY 2018-19 has been termed as "2019", FY 2019-20 as “2020", and so on. Employment corresponding to each fiscal year is the average of employment of all the months in that FY.
     
     *  Each Fiscal Year begins on April 1 and ends on March 31, the following year. For example, FY 2018-19 represents the time period between April 1 2018 and March 31 2019.
 
@@ -417,7 +417,7 @@ Figure 1 below shows the sum of EI eligible and non-EI eligible clients by year,
 
 Therefore, the current sum of EI eligible and non-EI eligible clients provides a good estimate of the expected number of EI eligible clients who will also be eligible for LMTA claims. 
 
-This sum excludes those who did not have a SIN or had an invalid SIN. Therefore, these clients were not counted under EI eligible nor under the 'non-EI eligible' category. Some of these individuals may have a valid SIN in the years ahead and become EI eligible. However, it is impossible to estimate the number of these individuals and are excluded.
+This sum excludes those who do not have 'EI attachment' and those who did not have a SIN or had an invalid SIN. These clients were not counted under EI eligible nor under the 'non-EI eligible' category. Some of these individuals may become EI eligible in the future however it is impossible to estimate their number at this stage and are excluded.
 
 Figure 1(a) on the left shows a decreasing trend but mainly due to low client numbers during the pandemic. Figure 1(b) on the right shows an increasing trend for the three most recent years.
 
